@@ -5,4 +5,5 @@ libwebp-dev
 mesa-dev
 pkgconfig(zlib)
 xz-dev
+zlib-dev
 zstd-dev

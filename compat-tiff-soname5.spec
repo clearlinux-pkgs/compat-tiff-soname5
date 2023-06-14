@@ -5,7 +5,7 @@
 #
 Name     : compat-tiff-soname5
 Version  : 4.4.0
-Release  : 61
+Release  : 62
 URL      : https://gitlab.com/libtiff/libtiff/-/archive/v4.4.0/libtiff-v4.4.0.tar.gz
 Source0  : https://gitlab.com/libtiff/libtiff/-/archive/v4.4.0/libtiff-v4.4.0.tar.gz
 Summary  : Tag Image File Format (TIFF) library.
@@ -14,11 +14,17 @@ License  : libtiff
 Requires: compat-tiff-soname5-lib = %{version}-%{release}
 Requires: compat-tiff-soname5-license = %{version}-%{release}
 BuildRequires : cmake
+BuildRequires : gcc-dev32
+BuildRequires : gcc-libgcc32
+BuildRequires : gcc-libstdc++32
+BuildRequires : glibc-dev32
+BuildRequires : glibc-libc32
 BuildRequires : libjpeg-turbo-dev
 BuildRequires : libwebp-dev
 BuildRequires : mesa-dev
 BuildRequires : pkgconfig(zlib)
 BuildRequires : xz-dev
+BuildRequires : zlib-dev
 BuildRequires : zstd-dev
 # Suppress stripping binaries
 %define __strip /bin/true
@@ -36,6 +42,15 @@ Requires: compat-tiff-soname5-license = %{version}-%{release}
 lib components for the compat-tiff-soname5 package.
 
 
+%package lib32
+Summary: lib32 components for the compat-tiff-soname5 package.
+Group: Default
+Requires: compat-tiff-soname5-license = %{version}-%{release}
+
+%description lib32
+lib32 components for the compat-tiff-soname5 package.
+
+
 %package license
 Summary: license components for the compat-tiff-soname5 package.
 Group: Default
@@ -47,13 +62,16 @@ license components for the compat-tiff-soname5 package.
 %prep
 %setup -q -n libtiff-v4.4.0
 cd %{_builddir}/libtiff-v4.4.0
+pushd ..
+cp -a libtiff-v4.4.0 build32
+popd
 
 %build
 export http_proxy=http://127.0.0.1:9/
 export https_proxy=http://127.0.0.1:9/
 export no_proxy=localhost,127.0.0.1,0.0.0.0
 export LANG=C.UTF-8
-export SOURCE_DATE_EPOCH=1686764676
+export SOURCE_DATE_EPOCH=1686764852
 export GCC_IGNORE_WERROR=1
 export CFLAGS="$CFLAGS -Ofast -falign-functions=32 -fdebug-types-section -femit-struct-debug-baseonly -fno-lto -fno-semantic-interposition -g1 -gno-column-info -gno-variable-location-views -gz=zstd "
 export FCFLAGS="$FFLAGS -Ofast -falign-functions=32 -fdebug-types-section -femit-struct-debug-baseonly -fno-lto -fno-semantic-interposition -g1 -gno-column-info -gno-variable-location-views -gz=zstd "
@@ -61,6 +79,15 @@ export FFLAGS="$FFLAGS -Ofast -falign-functions=32 -fdebug-types-section -femit-
 export CXXFLAGS="$CXXFLAGS -Ofast -falign-functions=32 -fdebug-types-section -femit-struct-debug-baseonly -fno-lto -fno-semantic-interposition -g1 -gno-column-info -gno-variable-location-views -gz=zstd "
 %reconfigure --disable-static --with-docdir=/usr/share/doc/tiff
 make  %{?_smp_mflags}
+pushd ../build32/
+export PKG_CONFIG_PATH="/usr/lib32/pkgconfig:/usr/share/pkgconfig"
+export ASFLAGS="${ASFLAGS}${ASFLAGS:+ }--32"
+export CFLAGS="${CFLAGS}${CFLAGS:+ }-m32 -mstackrealign"
+export CXXFLAGS="${CXXFLAGS}${CXXFLAGS:+ }-m32 -mstackrealign"
+export LDFLAGS="${LDFLAGS}${LDFLAGS:+ }-m32 -mstackrealign"
+%reconfigure --disable-static --with-docdir=/usr/share/doc/tiff  --libdir=/usr/lib32 --build=i686-generic-linux-gnu --host=i686-generic-linux-gnu --target=i686-clr-linux-gnu
+make  %{?_smp_mflags}
+popd
 
 %check
 export LANG=C.UTF-8
@@ -68,12 +95,29 @@ export http_proxy=http://127.0.0.1:9/
 export https_proxy=http://127.0.0.1:9/
 export no_proxy=localhost,127.0.0.1,0.0.0.0
 make %{?_smp_mflags} check
+cd ../build32;
+make %{?_smp_mflags} check || :
 
 %install
-export SOURCE_DATE_EPOCH=1686764676
+export SOURCE_DATE_EPOCH=1686764852
 rm -rf %{buildroot}
 mkdir -p %{buildroot}/usr/share/package-licenses/compat-tiff-soname5
 cp %{_builddir}/libtiff-v%{version}/COPYRIGHT %{buildroot}/usr/share/package-licenses/compat-tiff-soname5/a2f64f2a85f5fd34bda8eb713c3aad008adbb589 || :
+pushd ../build32/
+%make_install32
+if [ -d  %{buildroot}/usr/lib32/pkgconfig ]
+then
+pushd %{buildroot}/usr/lib32/pkgconfig
+for i in *.pc ; do ln -s $i 32$i ; done
+popd
+fi
+if [ -d %{buildroot}/usr/share/pkgconfig ]
+then
+pushd %{buildroot}/usr/share/pkgconfig
+for i in *.pc ; do ln -s $i 32$i ; done
+popd
+fi
+popd
 %make_install
 ## Remove excluded files
 rm -f %{buildroot}*/usr/bin/fax2ps
@@ -99,6 +143,10 @@ rm -f %{buildroot}*/usr/include/tiffconf.h
 rm -f %{buildroot}*/usr/include/tiffio.h
 rm -f %{buildroot}*/usr/include/tiffio.hxx
 rm -f %{buildroot}*/usr/include/tiffvers.h
+rm -f %{buildroot}*/usr/lib32/libtiff.so
+rm -f %{buildroot}*/usr/lib32/libtiffxx.so
+rm -f %{buildroot}*/usr/lib32/pkgconfig/32libtiff-4.pc
+rm -f %{buildroot}*/usr/lib32/pkgconfig/libtiff-4.pc
 rm -f %{buildroot}*/usr/lib64/libtiff.so
 rm -f %{buildroot}*/usr/lib64/libtiffxx.so
 rm -f %{buildroot}*/usr/lib64/pkgconfig/libtiff-4.pc
@@ -325,6 +373,13 @@ rm -f %{buildroot}*/usr/share/man/man3/libtiff.3tiff
 /usr/lib64/libtiff.so.5.8.0
 /usr/lib64/libtiffxx.so.5
 /usr/lib64/libtiffxx.so.5.8.0
+
+%files lib32
+%defattr(-,root,root,-)
+/usr/lib32/libtiff.so.5
+/usr/lib32/libtiff.so.5.8.0
+/usr/lib32/libtiffxx.so.5
+/usr/lib32/libtiffxx.so.5.8.0
 
 %files license
 %defattr(0644,root,root,0755)
