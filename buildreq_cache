@@ -1,0 +1,8 @@
+4.4.0
+cmake
+libjpeg-turbo-dev
+libwebp-dev
+mesa-dev
+pkgconfig(zlib)
+xz-dev
+zstd-dev
